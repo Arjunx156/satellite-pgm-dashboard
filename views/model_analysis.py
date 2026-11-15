@@ -32,12 +32,11 @@ with tab_tan:
     with right:
         st.markdown("#### Structure")
         note("Anomaly is a parent of every variable (grey). The blue arrows are the feature tree: the maximum "
-             "spanning tree of conditional mutual information I(X<sub>i</sub>; X<sub>j</sub> | Anomaly) on the "
-             f"training split, rooted at <b>{model.tan_root}</b>, the variable with the highest I(X; Anomaly).")
+             "spanning tree of conditional mutual information between feature pairs, given the anomaly label, on the "
+             f"training split. Its root is <b>{model.tan_root}</b>, the variable most informative about anomalies.")
         parents = pd.DataFrame([{"Variable": v, "Parents": ", ".join(p) or "none"}
                                 for v, p in model.tan_parents.items()])
         st.dataframe(parents, hide_index=True, width="stretch", height=36 * (len(parents) + 1) + 4)
-    st.latex(r"P(A, X_1,\dots,X_n) = P(A)\prod_i P\big(X_i \mid A, \mathrm{Pa}_T(X_i)\big)")
 
     st.markdown("#### Exact inference by Variable Elimination")
     post = model.bn.posterior
@@ -46,9 +45,9 @@ with tab_tan:
              ("kurtosis, n_peaks, smooth10_n_peaks = HIGH",
               {"kurtosis": 2, "n_peaks": 2, "smooth10_n_peaks": 2})]
     st.dataframe(pd.DataFrame({"Evidence": [c[0] for c in cases],
-                               "P(Anomaly | Evidence)": [post(c[1])[1] for c in cases]}),
+                               "Anomaly probability": [post(c[1])[1] for c in cases]}),
                  hide_index=True, width="stretch",
-                 column_config={"P(Anomaly | Evidence)": st.column_config.NumberColumn(format="%.3f")})
+                 column_config={"Anomaly probability": st.column_config.NumberColumn(format="%.3f")})
 
     st.markdown("#### Conditional probability tables")
     var = st.selectbox("Variable", model.vars, key="cpt_var")
@@ -63,7 +62,7 @@ with tab_tan:
     st.dataframe(pd.DataFrame(f.table.reshape(-1, f.table.shape[-1]), index=idx, columns=states),
                  width="stretch", column_config={s: st.column_config.NumberColumn(format="%.3f")
                                                           for s in states})
-    st.caption(f"P({var} | {', '.join(pa)}), Laplace smoothing α = 1. Each row sums to 1.")
+    st.caption(f"Probability of each {var} state given {' and '.join(pa)}. Laplace smoothed; each row sums to 1.")
 
 # ------------------------------------------------------------------ Markov network
 with tab_mn:
@@ -73,16 +72,21 @@ with tab_mn:
     with right:
         st.markdown("#### Undirected dependency structure")
         note("A tree over Anomaly and the telemetry variables: the maximum spanning tree of pairwise mutual "
-             "information I(X<sub>i</sub>; X<sub>j</sub>) on the training split. It represents dependencies "
+             "information on the training split. It represents dependencies "
              "and conditional independencies. It is not used to compute the TAN anomaly probability.")
-        st.latex(r"P(x) = \frac{1}{Z}\prod_{C}\psi_C(x_C)")
         kpi("Markov blanket of Anomaly", ", ".join(model.blanket), "its neighbours in the undirected graph",
             small=True)
     st.markdown("#### Conditional independence by graph separation")
-    note("X ⊥ Y | Z holds when removing Z leaves no path between X and Y. In a tree, any node on the path "
-         "separates its ends. The numerical check is that the dependence drops: I(X;Y | Z) < I(X;Y).")
-    st.dataframe(model.independencies, hide_index=True, width="stretch",
-                 column_config={c: st.column_config.NumberColumn(format="%.4f") for c in ["I(X;Y)", "I(X;Y | Z)"]})
+    note("Two variables are independent given a third when removing the third from the graph leaves no path "
+         "between them. In a tree, any node on the path between two variables separates them. As a check, "
+         "their mutual information should drop once the middle variable is known.")
+    ind = model.independencies.rename(columns={"I(X;Y)": "Mutual information",
+                                               "I(X;Y | Z)": "Given the middle variable"})
+    ind["Independence statement"] = [s.replace(" ⊥ ", " independent of ").replace(" | ", " given ")
+                                     for s in ind["Independence statement"]]
+    st.dataframe(ind, hide_index=True, width="stretch",
+                 column_config={c: st.column_config.NumberColumn(format="%.4f")
+                                for c in ["Mutual information", "Given the middle variable"]})
 
 # ------------------------------------------------------------------ HMM
 with tab_hmm:
@@ -90,26 +94,26 @@ with tab_hmm:
     with left:
         st.markdown("#### Transition matrix A")
         st.plotly_chart(charts.transition_heatmap(model.A), width="stretch", config=charts.PLOT_CONFIG)
-        st.latex(r"A_{ij} = P(S_{t+1}=j \mid S_t=i)")
-        st.markdown(f"Initial distribution π = <span class='mono'>[{model.pi[0]:.3f}, {model.pi[1]:.3f}]</span> "
-                    "(Nominal, Anomalous)", unsafe_allow_html=True)
+        st.markdown(f"Each row is the current state and each column the next state. A sequence starts nominal "
+                    f"with probability <b>{model.pi[0]:.3f}</b> and anomalous with <b>{model.pi[1]:.3f}</b>.",
+                    unsafe_allow_html=True)
         note("Counted from consecutive training segments of the same channel, in time order, with Laplace "
-             "smoothing. Emissions P(features | S<sub>t</sub>) come from the TAN network.")
+             "smoothing. How likely each state makes the observed features comes from the TAN network.")
     with right:
         st.markdown("#### Filtering and smoothing")
         st.markdown("""
-| | Quantity | Uses | Role |
-|---|---|---|---|
-| **HMM filtering** | P(S<sub>t</sub> \\| O<sub>1:t</sub>) | past and current segments | current / online state estimation, feeds the prediction and the Decision Network |
-| **HMM smoothing** | P(S<sub>t</sub> \\| O<sub>1:T</sub>) | the whole sequence, including future segments | retrospective / offline analysis only |
+| | Uses | Role |
+|---|---|---|
+| **HMM filtering** | past and current segments | current / online state estimation, feeds the prediction and the Decision Network |
+| **HMM smoothing** | the whole sequence, including future segments | retrospective / offline analysis only |
 """, unsafe_allow_html=True)
         if result is not None:
             b = result.current_hmm_risk
             c1, c2 = st.columns(2)
             with c1:
-                kpi("Filtered P(Nominal)", f"{1 - b:.3f}", "selected segment", small=True)
+                kpi("Filtered nominal probability", f"{1 - b:.3f}", "selected segment", small=True)
             with c2:
-                kpi("Filtered P(Anomalous)", f"{b:.3f}", "selected segment", small=True)
+                kpi("Filtered anomalous probability", f"{b:.3f}", "selected segment", small=True)
 
     st.markdown("#### Retrospective view of a channel")
     channels = model.channels()
@@ -161,7 +165,7 @@ with tab_eval:
                  column_config={c: st.column_config.NumberColumn(format="%.4f") for c in results.columns})
     best_brier = results["Brier Score"].idxmin()
     best_f1 = results["F1"].idxmax()
-    note(f"Brier score = mean (p − y)², lower is better: it scores the probabilities themselves. "
+    note(f"The Brier score is the average squared gap between predicted probability and true label, so lower is better: it scores the probabilities themselves. "
          f"<b>{best_brier}</b> has the lowest Brier score ({results.loc[best_brier, 'Brier Score']:.4f}), "
          f"while <b>{best_f1}</b> has the highest F1 ({results.loc[best_f1, 'F1']:.4f}). The highest F1 at one "
          "threshold does not make a model the best probabilistic model. The Decision Network is not in this "

@@ -54,16 +54,16 @@ def risk_timeline(result, window=40, show_labels=True):
     if manual_tail:                                    # the scenario is the current step
         x, tan, filt = x + [0], tan + [result.current_tan_risk], filt + [result.current_hmm_risk]
 
-    fig.add_trace(go.Scatter(x=x, y=tan, name="TAN  P(A<sub>t</sub> | e<sub>t</sub>)", mode="lines+markers",
+    fig.add_trace(go.Scatter(x=x, y=tan, name="TAN (this segment only)", mode="lines+markers",
                              line=dict(color=TAN_LINE, width=1.2, dash="dash"), marker=dict(size=4),
                              hovertemplate="step %{x}<br>TAN %{y:.3f}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=x, y=filt, name="HMM filtered  P(A<sub>t</sub> | O<sub>1:t</sub>)", mode="lines+markers",
+    fig.add_trace(go.Scatter(x=x, y=filt, name="HMM filtered risk", mode="lines+markers",
                              line=dict(color=ACCENT, width=2.2), marker=dict(size=5),
                              hovertemplate="step %{x}<br>filtered %{y:.3f}<extra></extra>"))
     fig.add_trace(go.Scatter(x=[0, 1], y=[result.current_hmm_risk, result.next_anomaly_risk],
                              mode="lines", line=dict(color=ACCENT, width=2, dash="dot"),
                              showlegend=False, hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=[1], y=[result.next_anomaly_risk], name="Predicted  P(A<sub>t+1</sub> | O<sub>1:t</sub>)",
+    fig.add_trace(go.Scatter(x=[1], y=[result.next_anomaly_risk], name="Predicted next-segment risk",
                              mode="markers", marker=dict(size=14, color="rgba(0,0,0,0)",
                                                          line=dict(color=ACCENT, width=2.5)),
                              hovertemplate="next segment<br>predicted %{y:.3f}<extra></extra>"))
@@ -86,7 +86,7 @@ def risk_timeline(result, window=40, show_labels=True):
                                (0.55, "PREDICTED", "left")):
         fig.add_annotation(x=xpos, y=1.13, text=text, showarrow=False, yref="y", xanchor=anchor,
                            font=dict(size=10, color=ACCENT if text == "PREDICTED" else MUTED, family=MONO))
-    fig.update_yaxes(range=[-0.04, 1.2], title="P(Anomalous)", tickvals=[0, 0.25, 0.5, 0.75, 1])
+    fig.update_yaxes(range=[-0.04, 1.2], title="Anomaly probability", tickvals=[0, 0.25, 0.5, 0.75, 1])
     fig.update_xaxes(title="segment step relative to current (0 = current, +1 = next)",
                      range=[lo - 0.6, 3.2])
     return _layout(fig, height=420)
@@ -94,14 +94,14 @@ def risk_timeline(result, window=40, show_labels=True):
 
 def current_vs_next(result):
     fig = go.Figure()
-    labels = ["TAN  P(A<sub>t</sub> | e<sub>t</sub>)", "HMM filtered  P(A<sub>t</sub> | O<sub>1:t</sub>)", "Predicted  P(A<sub>t+1</sub> | O<sub>1:t</sub>)"]
+    labels = ["TAN (this segment only)", "HMM filtered risk", "Predicted next-segment risk"]
     vals = [result.current_tan_risk, result.current_hmm_risk, result.next_anomaly_risk]
     colours = [TAN_LINE, ACCENT, "rgba(92,200,230,0.35)"]
     fig.add_trace(go.Bar(x=labels, y=vals, marker=dict(color=colours, line=dict(color=ACCENT, width=[0, 0, 2])),
                          text=[f"{v:.3f}" for v in vals], textposition="outside",
                          textfont=dict(family=MONO), hoverinfo="skip"))
     _band_lines(fig)
-    fig.update_yaxes(range=[0, 1.12], title="P(Anomalous)")
+    fig.update_yaxes(range=[0, 1.12], title="Anomaly probability")
     return _layout(fig, height=340, showlegend=False)
 
 
@@ -113,7 +113,7 @@ def evidence_bars(features):
         marker_color=[ANOMALY if v > 0 else ACCENT for v in w],
         hovertemplate="%{y}<br>log-likelihood ratio %{x:.3f}<extra></extra>"))
     fig.add_vline(x=0, line=dict(color=MUTED, width=1))
-    fig.update_xaxes(title="log P(x | parents, Anomalous) − log P(x | parents, Nominal)")
+    fig.update_xaxes(title="evidence weight (positive favours anomalous)")
     return _layout(fig, height=40 + 32 * len(f), showlegend=False)
 
 
@@ -124,8 +124,8 @@ def transition_heatmap(A):
                                text=[[f"{v:.3f}" for v in row] for row in A], texttemplate="%{text}",
                                textfont=dict(family=MONO, size=16),
                                hovertemplate="from %{y} to %{x}: %{z:.4f}<extra></extra>"))
-    fig.update_xaxes(title="Next state S<sub>t+1</sub>", side="bottom")
-    fig.update_yaxes(title="Current state S<sub>t</sub>", autorange="reversed")
+    fig.update_xaxes(title="Next state", side="bottom")
+    fig.update_yaxes(title="Current state", autorange="reversed")
     return _layout(fig, height=300, margin=dict(l=90, r=20, t=20, b=60))
 
 
@@ -143,7 +143,7 @@ def filter_vs_smooth(model, channel, start, stop):
                              marker=dict(color=MUTED, size=6)))
     fig.add_trace(go.Scatter(x=x[test], y=y[test], mode="markers", name="label (test)",
                              marker=dict(color="rgba(0,0,0,0)", size=9, line=dict(color=TEXT, width=1.5))))
-    fig.update_yaxes(range=[-0.05, 1.05], title="P(Anomalous)")
+    fig.update_yaxes(range=[-0.05, 1.05], title="Anomaly probability")
     fig.update_xaxes(title=f"segment position in channel {channel}")
     return _layout(fig, height=380)
 
@@ -212,7 +212,7 @@ def eu_lines(p_cur, p_next):
         fig.add_trace(go.Scatter(x=[x], y=[best], mode="markers", name=name,
                                  marker=dict(symbol=sym, size=13, color=ACCENT, line=dict(width=2.5, color=ACCENT)),
                                  hovertemplate=f"{name}<br>p = %{{x:.3f}}<br>max EU = %{{y:.2f}}<extra></extra>"))
-    fig.update_xaxes(title="P(Anomalous | evidence)", range=[-0.02, 1.02])
+    fig.update_xaxes(title="Anomaly probability", range=[-0.02, 1.02])
     fig.update_yaxes(title="Expected utility")
     return _layout(fig, height=380)
 
@@ -225,7 +225,7 @@ def eu_bars(eu, best):
                            textfont=dict(family=MONO)))
     lo, hi = min(0, min(eu.values())), max(0, max(eu.values()))
     pad = 0.22 * (hi - lo) + 1
-    fig.update_xaxes(range=[lo - pad, hi + pad], title="EU(a | E)")
+    fig.update_xaxes(range=[lo - pad, hi + pad], title="Expected utility")
     fig.update_yaxes(autorange="reversed")
     return _layout(fig, height=200, showlegend=False, margin=dict(l=90, r=30, t=10, b=44))
 
@@ -265,10 +265,10 @@ def markov_dot(model):
 
 def influence_dot():
     return f"""digraph ID {{ rankdir=LR; {_GRAPH} nodesep=0.6; ranksep=0.9;
-evidence [label="Telemetry evidence\\nO_1:t", shape=box, style="rounded,filled"];
-state [label="Satellite state S_t\\nNominal / Anomalous\\n(chance)", shape=ellipse, color="{ACCENT}"];
+evidence [label="Telemetry evidence", shape=box, style="rounded,filled"];
+state [label="Satellite state\\nNominal / Anomalous\\n(chance)", shape=ellipse, color="{ACCENT}"];
 action [label="Action\\nContinue / Monitor / Safe Mode\\n(decision)", shape=box];
-utility [label="Utility\\nU(a, s)", shape=diamond, color="{ANOMALY}"];
+utility [label="Utility", shape=diamond, color="{ANOMALY}"];
 evidence -> state [label=" HMM filtering", fontcolor="{MUTED}", fontsize=9];
 evidence -> action; state -> utility; action -> utility;
 }}"""

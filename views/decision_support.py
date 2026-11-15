@@ -25,17 +25,13 @@ with c3:
     action_kpi(result.recommended_action, f"{result.risk_band} band at the current probability")
 
 st.subheader("Expected utility")
-st.latex(r"EU(a \mid E) = \sum_s P(s \mid E)\,U(a, s), \qquad a^* = \arg\max_a EU(a \mid E)")
+note("Each action's expected utility weighs its utility in each state by how likely that state is. "
+     "The recommended action is the one with the highest expected utility.")
 left, right = st.columns(2, gap="large")
 with left:
     st.markdown("**At the current belief**: used for the recommendation, as in the notebook")
     st.plotly_chart(charts.eu_bars(result.expected_utilities, result.recommended_action),
                     width="stretch", config=charts.PLOT_CONFIG)
-    p = result.current_hmm_risk
-    rows = "<br>".join(f"{a}: {1 - p:.4f} &times; {u["Nominal"]} + {p:.4f} &times; {u["Anomalous"]} = "
-                       f"<b>{result.expected_utilities[a]:.3f}</b>"
-                       for a, u in decision_network.utility_table().iterrows())
-    st.markdown(f"<div class='mono' style='font-size:0.85rem'>{rows}</div>", unsafe_allow_html=True)
 with right:
     st.markdown("**At the predicted next-segment belief**: forward-looking view")
     st.plotly_chart(charts.eu_bars(result.next_expected_utilities, result.next_recommended_action),
@@ -45,8 +41,8 @@ with right:
 note("The recommended action is the action with the highest expected utility under the state probabilities. "
      "The headline recommendation uses the filtered current belief, the operational input the notebook's "
      "Decision Network was built and evaluated on. The next-segment view applies the same utilities to "
-     "P(S<sub>t+1</sub> | O<sub>1:t</sub>). Because that probability is confined to "
-     f"[{model.A[0, 1]:.3f}, {model.A[1, 1]:.3f}] by the transition matrix, it always falls in the Monitor region.")
+     f"the next-segment probability. Because the transition matrix keeps that probability between "
+     f"{pct(model.A[0, 1])} and {pct(model.A[1, 1])}, it always falls in the Monitor region.")
 
 st.subheader("Utility table and action regions")
 left, right = st.columns([2, 3], gap="large")
@@ -54,8 +50,7 @@ with left:
     st.dataframe(decision_network.utility_table(), width="stretch")
     regions = decision_network.action_regions()
     st.markdown("<br>".join(
-        f"<b>{a}</b> for P(Anomalous) in [{float(lo):.3f}, {float(hi):.3f}]"
-        + (f"  (exact {lo} to {hi})" if lo.denominator > 1 or hi.denominator > 1 else "")
+        f"<b>{a}</b> when the anomaly probability is between {pct(float(lo))} and {pct(float(hi))}"
         for a, lo, hi in regions), unsafe_allow_html=True)
     note("Low / moderate / high risk bands on this dashboard are these action regions renamed. They come from "
          "the utility table, not from validated spacecraft safety thresholds.")

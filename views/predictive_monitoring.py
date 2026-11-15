@@ -63,14 +63,12 @@ else:
     st.plotly_chart(charts.current_vs_next(result), width="stretch", config=charts.PLOT_CONFIG)
 
 lo, hi = A[0, 1], A[1, 1]
-note(f"With the learned transition matrix, next-segment risk is "
-     f"{lo:.3f} + ({hi:.3f} &minus; {lo:.3f}) &times; current risk, so it always lies between "
-     f"{pct(lo)} and {pct(hi)}. One step ahead, the HMM regresses towards its long-run anomaly rate. "
+note(f"With the learned transition matrix, next-segment risk always lies between "
+     f"{pct(lo)} and {pct(hi)}, however high or low the current risk is. One step ahead, the HMM regresses towards its long-run anomaly rate. "
      "That is why the predicted next state is nominal unless the transition matrix itself says otherwise. "
      "Dotted lines mark the Decision Network action boundaries.")
 
 st.subheader("How was this prediction made?")
-p_n, p_a = 1 - result.current_hmm_risk, result.current_hmm_risk
 weights = result.features.sort_values("Evidence weight", ascending=False)
 top = ", ".join(f"{r.Feature.lower()} {r.State}" for r in weights.head(2).itertuples())
 eu = result.expected_utilities
@@ -78,14 +76,14 @@ st.markdown(f"""
 <ol class="steps">
 <li>The {len(result.features)} model variables were prepared. Numeric features were binned into LOW / MEDIUM / HIGH
 using cut points learned from the 1,594 training segments{"; missing values took the training median" if result.filled else ""}.</li>
-<li>The TAN Bayesian network computed <span class="num">P(Anomaly | evidence) = {result.current_tan_risk:.4f}</span>.
+<li>The TAN Bayesian network put this segment's anomaly probability at <b>{pct(result.current_tan_risk)}</b>.
 The strongest evidence towards anomalous was {top}.</li>
-<li>HMM filtering combined that evidence with {"the channel's earlier segments" if result.has_history else "the initial distribution π"}:
-<span class="num">P(S<sub>t</sub> = anomalous | O<sub>1:t</sub>) = {result.current_hmm_risk:.4f}</span>.</li>
-<li>The transition matrix projected one step ahead:
-<span class="num">{p_n:.4f} &times; {A[0, 1]:.3f} + {p_a:.4f} &times; {A[1, 1]:.3f} = {result.next_anomaly_risk:.4f}</span>.</li>
+<li>HMM filtering combined that evidence with {"the channel's earlier segments" if result.has_history else "the model's starting state probabilities"},
+giving a current anomaly risk of <b>{pct(result.current_hmm_risk)}</b>.</li>
+<li>The HMM's learned state-change probabilities projected that one segment ahead, giving a
+next-segment risk of <b>{pct(result.next_anomaly_risk)}</b>.</li>
 <li>The Decision Network compared expected utilities at the current risk
-(<span class="num">Continue {eu["Continue"]:.2f}, Monitor {eu["Monitor"]:.2f}, Safe Mode {eu["Safe Mode"]:.2f}</span>)
+(Continue {eu["Continue"]:.2f}, Monitor {eu["Monitor"]:.2f}, Safe Mode {eu["Safe Mode"]:.2f})
 and recommends <b>{result.recommended_action}</b>.</li>
 </ol>
 """, unsafe_allow_html=True)

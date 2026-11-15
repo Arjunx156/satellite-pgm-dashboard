@@ -26,8 +26,7 @@ with c3:
         "same discretised inputs; ML comparison, not the primary model",
         colour=theme.risk_colour(result.dt_risk))
 
-note("The TAN probability is Bayes' rule over the learned network: "
-     "P(A | e) ∝ P(A) ∏<sub>i</sub> P(x<sub>i</sub> | A, parent<sub>i</sub>). "
+note("The TAN probability comes from Bayes' rule applied to the learned network. "
      "It says how strongly this combination of discrete feature states resembled anomalous training segments.")
 
 st.subheader("Model inputs and discrete states")
@@ -38,7 +37,7 @@ st.dataframe(
     table[["Feature", "Variable", "Value", "State", "Evidence weight"]],
     hide_index=True, width="stretch", height=36 * (len(table) + 1) + 4,
     column_config={"Evidence weight": st.column_config.NumberColumn(
-        format="%+.3f", help="log P(x | parents, Anomalous) − log P(x | parents, Nominal). "
+        format="%+.3f", help="How much this feature state favours anomalous over nominal in the learned model. "
                              "Positive pushes towards anomalous.")})
 
 st.subheader("Feature evidence")
