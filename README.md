@@ -2,6 +2,8 @@
 
 **Probabilistic Satellite Telemetry Anomaly Risk Assessment and Decision Support Using Probabilistic Graphical Models**
 
+**Live dashboard:** https://satellite-pgm-dashboard.streamlit.app
+
 A Streamlit dashboard built on the project's validated notebook (`final_satellite_pgm_project.ipynb`). It takes one telemetry segment from the ESA OPS-SAT-AD dataset, or a set of hand-entered features, and answers three questions:
 
 1. How likely is it that this segment is anomalous? That is P(Anomaly | Telemetry Evidence), from a TAN Bayesian network.
