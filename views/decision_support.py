@@ -15,11 +15,11 @@ st.warning(DISCLAIMER)
 
 c1, c2, c3 = st.columns(3, gap="medium")
 with c1:
-    kpi("Current anomaly probability", pct(result.current_hmm_risk), "HMM filtering, P(A<sub>t</sub> | O<sub>1:t</sub>)",
+    kpi("Current anomaly probability", pct(result.current_hmm_risk), "HMM filtering on this and earlier segments",
         colour=theme.risk_colour(result.current_hmm_risk), primary=True, bar=result.current_hmm_risk)
 with c2:
     kpi("Predicted next-segment probability", pct(result.next_anomaly_risk),
-        "P(A<sub>t+1</sub> | O<sub>1:t</sub>)", colour=theme.risk_colour(result.next_anomaly_risk),
+        "current state projected one segment ahead", colour=theme.risk_colour(result.next_anomaly_risk),
         primary=True, bar=result.next_anomaly_risk)
 with c3:
     action_kpi(result.recommended_action, f"{result.risk_band} band at the current probability")

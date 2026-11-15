@@ -16,26 +16,25 @@ show_input_messages(result)
 c1, c2 = st.columns(2, gap="medium")
 with c1:
     kpi("Current anomaly risk", pct(result.current_hmm_risk),
-        f"HMM filtering <code>P(A<sub>t</sub> | O<sub>1:t</sub>)</code> &middot; "
+        f"HMM filtering on this and earlier segments &middot; "
         f"TAN alone {pct(result.current_tan_risk)} &middot; {result.risk_band.lower()}",
         colour=theme.risk_colour(result.current_hmm_risk), primary=True, bar=result.current_hmm_risk)
 with c2:
     kpi("Predicted next-segment risk", pct(result.next_anomaly_risk),
-        f"<code>P(A<sub>t+1</sub> | O<sub>1:t</sub>)</code> = current belief &times; transition matrix "
-        f"&middot; {result.next_risk_band.lower()}",
+        f"current state projected one segment ahead &middot; {result.next_risk_band.lower()}",
         colour=theme.risk_colour(result.next_anomaly_risk), primary=True, bar=result.next_anomaly_risk)
 
 st.write("")
 c3, c4, c5 = st.columns(3, gap="medium")
 with c3:
     state_kpi("Current state", result.current_state,
-              f"argmax of the filtered belief (threshold {0.5:.1f})")
+              "more likely state right now")
 with c4:
     state_kpi("Predicted next state", result.predicted_next_state,
-              "argmax of the one-step prediction")
+              "more likely state of the next segment")
 with c5:
     action_kpi(result.recommended_action,
-               f"max expected utility at current risk &middot; next-segment view: "
+               f"highest expected utility at current risk &middot; next segment: "
                f"{result.next_recommended_action}")
 
 if result.mode == "dataset":

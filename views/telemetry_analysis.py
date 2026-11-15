@@ -15,11 +15,11 @@ show_input_messages(result)
 
 c1, c2, c3 = st.columns(3, gap="medium")
 with c1:
-    kpi("TAN  P(Anomaly | evidence)", pct(result.current_tan_risk),
+    kpi("TAN anomaly probability", pct(result.current_tan_risk),
         "this segment's features only, no temporal context",
         colour=theme.risk_colour(result.current_tan_risk), primary=True, bar=result.current_tan_risk)
 with c2:
-    kpi("Prior P(Anomaly)", pct(model.bn.posterior({})[1]),
+    kpi("Prior anomaly probability", pct(model.bn.posterior({})[1]),
         "before any evidence: the training anomaly rate (Laplace smoothed)")
 with c3:
     kpi("Decision Tree benchmark", pct(result.dt_risk),
